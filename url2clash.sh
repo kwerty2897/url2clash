@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Proxy URL converter for Clash Meta (Bash version)
-# Supports: vless://, vmess://, ss://, hy://, hy2://, tuic://
+# Supports: vless://, vmess://, ss://, hy://, hy2://, tuic://, trojan://
 # Usage: ./convert.sh 'your_proxy_url_here'
 
 if [ $# -eq 0 ]; then
@@ -199,8 +199,12 @@ convert_hy() {
 
 convert_hy2() {
     local uri="${url#hy2://}"
-    local userinfo="${uri%%@*}"
-    local server_port="${uri#*@}"
+    # Split URL to handle fragment separately
+    local base_url="${uri%%#*}"
+    local fragment="${uri#*#}"
+    
+    local userinfo="${base_url%%@*}"
+    local server_port="${base_url#*@}"
     local server="${server_port%%:*}"
     local port="${server_port#*:}"
     port="${port%%/*}"
@@ -217,9 +221,13 @@ convert_hy2() {
     # Parse query parameters
     while IFS='=' read -r key value; do
         case "$key" in
-            sni) echo "    sni: $value" ;;
+            sni) 
+                decoded_value=$(url_decode "$value")
+                echo "    sni: $decoded_value" 
+                ;;
             obfs) echo "    obfs: $value" ;;
             obfs-password) echo "    obfs-password: $value" ;;
+            insecure) echo "    skip-cert-verify: true" ;;
         esac
     done < <(tr '&' '\n' <<< "$query")
 }
@@ -266,6 +274,68 @@ convert_tuic() {
     done < <(tr '&' '\n' <<< "$query")
 }
 
+convert_trojan() {
+    local uri="${url#trojan://}"
+    local password="${uri%%@*}"
+    local server_port="${uri#*@}"
+    local server="${server_port%%:*}"
+    local port="${server_port#*:}"
+    port="${port%%/*}"
+    local query="${server_port#*\?}"
+    query="${query%%#*}"
+    
+    local name="$(get_name "$url" "$server:$port")"
+
+    echo "  - name: \"$name\""
+    echo "    type: trojan"
+    echo "    server: $server"
+    echo "    port: $port"
+    echo "    password: \"$password\""
+    echo "    udp: true"
+    echo "    skip-cert-verify: false"
+    
+    # Parse query parameters
+    while IFS='=' read -r key value; do
+        case "$key" in
+            sni|peer) 
+                echo "    sni: $value"
+                echo "    servername: $value"
+                ;;
+            security) 
+                if [ "$value" = "tls" ]; then
+                    echo "    tls: true"
+                fi
+                ;;
+            alpn) 
+                echo "    alpn:"
+                IFS=',' read -ra alpn_values <<< "$value"
+                for a in "${alpn_values[@]}"; do
+                    echo "      - $a"
+                done
+                ;;
+            type)
+                case "$value" in
+                    ws)
+                        echo "    network: ws"
+                        echo "    ws-opts:"
+                        path="$(grep -o 'path=[^&]*' <<< "$query" | cut -d= -f2 || echo "/")"
+                        echo "      path: \"$path\""
+                        host="$(grep -o 'host=[^&]*' <<< "$query" | cut -d= -f2)"
+                        [ -n "$host" ] && echo "      headers:" && echo "        Host: \"$host\""
+                        ;;
+                    grpc)
+                        echo "    network: grpc"
+                        echo "    grpc-opts:"
+                        service_name="$(grep -o 'serviceName=[^&]*' <<< "$query" | cut -d= -f2)"
+                        [ -n "$service_name" ] && echo "      grpc-service-name: \"$service_name\""
+                        ;;
+                esac
+                ;;
+            fp) echo "    client-fingerprint: $value" ;;
+        esac
+    done < <(tr '&' '\n' <<< "$query")
+}
+
 # Main conversion
 case "$url" in
     vless://*)
@@ -291,6 +361,10 @@ case "$url" in
     tuic://*)
         echo "proxies:"
         convert_tuic
+        ;;
+    trojan://*)
+        echo "proxies:"
+        convert_trojan
         ;;
     *)
         echo "Error: Unsupported URL format" >&2

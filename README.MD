@@ -7,23 +7,12 @@
 - `hy://` (Hysteria v1)
 - `hy2://` (Hysteria v2) 
 - `tuic://`
+- `trojan://`
 
 ## Usage
-
-### PowerShell
-```powershell
-.\url2clash.ps1 'your_proxy_url_here'
-```
-*Requires: PowerShell 5.1+*
 
 ### Bash
 ```bash
 ./url2clash.sh 'your_proxy_url_here'
 ```
 *Requires: `jq`, `base64`*
-
-### Ash (for routers/BusyBox)
-```bash
-./url2clash.ash 'your_proxy_url_here'
-```
-*Requires: `base64`*
