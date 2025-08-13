@@ -14,6 +14,6 @@
 
 ### Bash
 ```bash
-python3 ./url2clash.sh 'your_proxy_url_here'
+python3 ./url2clash.py 'your_proxy_url_here'
 ```
 *Requires: `python 3`*
