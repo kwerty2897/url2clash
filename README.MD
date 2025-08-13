@@ -4,6 +4,7 @@
 - `vless://` (with Reality support)
 - `vmess://`
 - `ss://`
+- `hysteria://` (Hysteria v1)
 - `hy://` (Hysteria v1)
 - `hy2://` (Hysteria v2) 
 - `tuic://`
@@ -13,6 +14,6 @@
 
 ### Bash
 ```bash
-./url2clash.sh 'your_proxy_url_here'
+python3 ./url2clash.sh 'your_proxy_url_here'
 ```
-*Requires: `jq`, `base64`*
+*Requires: `python 3`*
